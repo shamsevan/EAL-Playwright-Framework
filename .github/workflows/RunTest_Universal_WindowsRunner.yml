@@ -15,7 +15,7 @@ on:
       # (Bangla) Portal URL er jonne input. Kichu na dile khali string nibe.
       # =====================================================================
       url: 
-        description: 'Portal URL (Blank = use .env default)' 
+        description: 'Portal URL (Blank = use default)' 
         required: false 
         default: '' 
         type: string 
@@ -25,7 +25,7 @@ on:
       # (Bangla) Username er jonne input. Kichu na dile khali string nibe.
       # =====================================================================
       userid: 
-        description: 'Username (Blank = use .env default)' 
+        description: 'Username (Blank = use default)' 
         required: false 
         default: '' 
         type: string 
@@ -61,7 +61,7 @@ jobs:
     # (Pro-Grade) Dynamically loads secrets based on the current Branch Name
     # (Bangla) Current Branch er nam onujayi automatically secret load korbe.
     # =====================================================================
-    environment: ${{ github.ref_name }}
+    environment: ${{ github.ref_name }} 
 
     steps: 
       # =====================================================================
@@ -92,45 +92,78 @@ jobs:
           npx playwright install chromium --with-deps
 
       # =====================================================================
-      # 4. (English) Resolve Credentials & Run Tests via Controller.
+      # 4. (English) Mark run start time to identify newly generated reports.
+      #    (Bangla) Test shuru howar somoy mark korbe jate shudhu notun report pawa jay.
+      # =====================================================================
+      - name: Mark run start time
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path $env:RUNNER_TEMP -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $env:RUNNER_TEMP 'run_start_marker') -Force | Out-Null
+
+      # =====================================================================
+      # 5. (English) Resolve Credentials & Run Tests via Controller.
       #    (Bangla) Input/Secret theke data niye Playwright test run korbe.
       # =====================================================================
       - name: Run Playwright tests with selected controller 
         shell: powershell 
         env: 
-          # =====================================================================
-          # (English) Fetches password from GitHub Environment Secrets.
-          # (Bangla) GitHub Environment Secrets theke password fetch korbe.
-          # =====================================================================
+          # GitHub Environment Secrets theke password fetch korbe
           SECRET_PASSWORD: ${{ secrets.USER_PORTAL_PASSWORD }} 
         run: | 
-          # Step A: Resolve URL
           $resolvedUrl = "${{ github.event.inputs.url }}"
           if ([string]::IsNullOrWhiteSpace($resolvedUrl)) { $resolvedUrl = "https://parabank.parasoft.com/parabank/index.htm" }
 
-          # Step B: Resolve Username
           $resolvedUser = "${{ github.event.inputs.userid }}"
           if ([string]::IsNullOrWhiteSpace($resolvedUser)) { $resolvedUser = "john" }
 
-          # Step C: Resolve Password
           $resolvedPassword = "${{ github.event.inputs.password }}"
           if ([string]::IsNullOrWhiteSpace($resolvedPassword)) { $resolvedPassword = $env:SECRET_PASSWORD }
 
-          # Exporting to Runner Environment
           "USER_PORTAL_URL=$resolvedUrl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
           "USER_PORTAL_USERNAME=$resolvedUser" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
           "USER_PORTAL_PASSWORD=$resolvedPassword" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
           
-          # Run the selected controller
           $controller = "${{ github.event.inputs.test_controller }}"
           Write-Host "Running tests using: $controller"
           "TEST_CONTROLLER=$controller" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
           
           npm test $controller
 
-     # =====================================================================
-      # 5. (English) Upload Playwright HTML Report.
-      #    (Bangla) Playwright report ti GitHub artifact hisebe upload korbe.
+      # =====================================================================
+      # 6. (English) Resolve ONLY the newly generated AllTestResults folder.
+      #    (Bangla) Purano folder baad diye shudhu eibarer toiri kora folder khujbe.
+      # =====================================================================
+      - name: Resolve newly generated AllTestResults folder
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          $base = 'AllTestResults/HTMLReports'
+          $marker = Join-Path $env:RUNNER_TEMP 'run_start_marker'
+          $latest = ''
+
+          if ((Test-Path $marker) -and (Test-Path $base)) {
+            $markerItem = Get-Item $marker
+            $candidate = Get-ChildItem -Path $base -Directory -Filter 'Results_*' -ErrorAction SilentlyContinue |
+              Where-Object { $_.LastWriteTimeUtc -gt $markerItem.LastWriteTimeUtc } |
+              Sort-Object Name |
+              Select-Object -Last 1
+            if ($candidate) {
+              $latest = $candidate.FullName
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($latest)) {
+            Write-Host 'No AllTestResults folder found to upload.'
+          } else {
+            Write-Host "Newly generated report folder: $latest"
+          }
+
+          "REPORT_DIR=$latest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # =====================================================================
+      # 7. (English) Upload Playwright HTML report.
+      #    (Bangla) Playwright er default HTML report ti upload korbe.
       # =====================================================================
       - name: Upload Playwright HTML report 
         uses: actions/upload-artifact@v4 
@@ -141,13 +174,13 @@ jobs:
           retention-days: 15
 
       # =====================================================================
-      # 6. (English) Upload AllTestResults Directory.
-      #    (Bangla) AllTestResults folder ti GitHub artifact hisebe upload korbe.
+      # 8. (English) Upload the dynamically resolved AllTestResults folder.
+      #    (Bangla) Shudhumatro notun toiri howa AllTestResults folder ti upload korbe.
       # =====================================================================
       - name: Upload All Test Results
         uses: actions/upload-artifact@v4 
-        if: ${{ always() }} 
+        if: ${{ always() && env.REPORT_DIR != '' }} 
         with: 
           name: AllTestResults-${{ github.ref_name }}
-          path: AllTestResults/ 
+          path: ${{ env.REPORT_DIR }}
           retention-days: 15
