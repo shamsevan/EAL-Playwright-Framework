@@ -1,6 +1,6 @@
 name: >-
   EAL Scheduled Test Runner
-  EAL-এর নির্দিষ্ট সময়ে test run
+
 run-name: >-
   EAL Scheduled Test Runner (Automated)
   EAL-এর নির্দিষ্ট সময়ে test run (স্বয়ংক্রিয়)
