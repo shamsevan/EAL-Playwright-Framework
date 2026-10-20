@@ -1,0 +1,4 @@
+Ui Page Title,TestData Name,TestData Value,Static / Dynamic,Note - Where to Find,TC ID used in,Status,Note
+ParaBank Login,PB_Login_username,john,Static,ParaBank: UI > Username Field,TC-PB-001,,
+ParaBank Login,PB_Login_password,demo,Static,ParaBank: UI > Password Field,TC-PB-001,,
+ParaBank Accounts,PB_Login_expectedSuccessMessage,Accounts Overview,Static,ParaBank: UI > Accounts Overview Heading,TC-PB-001,,

@@ -1,0 +1,2 @@
+Execute,testCaseID,testDescription,Module,SpecFileName,TotalSpecFileTestCases,TestPlanID,SuiteID,Status,Note,Assigned To
+Y,TC-PB-001,Verify Successful Login in ParaBank,Authentication,paraBankLogin,1,,,,Ready,QA-Shams

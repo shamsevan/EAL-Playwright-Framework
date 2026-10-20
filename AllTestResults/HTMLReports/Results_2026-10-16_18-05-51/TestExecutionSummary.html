@@ -1,0 +1,249 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Test Execution Summary Report</title> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <style> 
+        * { margin: 0; padding: 0; box-sizing: border-box; } 
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; } 
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.2); overflow: hidden; } 
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; } 
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,.3); } 
+        .header p { font-size: 1.1em; opacity: .95; } 
+        .stats-container { display: flex; gap: 30px; padding: 30px; background: #f8f9fa; align-items: center; } 
+        .chart-container { flex: 0 0 300px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,.1); } 
+        .chart-container canvas { max-width: 100%; height: auto !important; } 
+        .stats-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; } 
+        .stat-card { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,.1); transition: transform .3s, box-shadow .3s; } 
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,.2); } 
+        .stat-card .number { font-size: 2.2em; font-weight: bold; margin-bottom: 8px; } 
+        .stat-card .label { font-size: .85em; color: #666; text-transform: uppercase; letter-spacing: .5px; } 
+        .stat-card.total .number { color: #3498db; } 
+        .stat-card.passed .number { color: #2ecc71; } 
+        .stat-card.failed .number { color: #e74c3c; } 
+        .stat-card.skipped .number { color: #f39c12; } 
+        .stat-card.duration .number { font-size: 1.6em; } 
+        .stat-card.pass-rate .number { color: #2ecc71; } 
+        .stat-card.failure-rate .number { color: #e74c3c; } 
+        .stat-card.spec-files .number { color: #9b59b6; } 
+        .stat-card.total-elapsed .number { color: #16a085; font-size: 1.6em; } 
+        .info-section { padding: 20px 30px; background: white; border-bottom: 1px solid #eee; } 
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: .95em; } 
+        .info-label { font-weight: bold; color: #555; } 
+        .info-value { color: #333; } 
+        .search-sort-container { padding: 20px 30px; background: white; display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #eee; } 
+        .search-box { flex: 1; max-width: 400px; } 
+        .search-box input { width: 100%; padding: 10px 15px; border: 2px solid #ddd; border-radius: 6px; font-size: .95em; transition: border-color .3s; } 
+        .search-box input:focus { outline: none; border-color: #667eea; } 
+        .sort-box { display: flex; gap: 10px; align-items: center; } 
+        .sort-box label { font-weight: 600; color: #555; } 
+        .sort-box select { padding: 10px 15px; border: 2px solid #ddd; border-radius: 6px; font-size: .95em; cursor: pointer; background: white; } 
+        .sort-box select:focus { outline: none; border-color: #667eea; } 
+        .results-section { padding: 30px; } 
+        .results-section h2 { color: #333; margin-bottom: 20px; font-size: 1.8em; border-bottom: 3px solid #667eea; padding-bottom: 10px; } 
+        .filter-buttons { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; } 
+        .filter-btn { padding: 10px 20px; border: 2px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: .95em; transition: all .3s; } 
+        .filter-btn:hover { background: #f0f0f0; } 
+        .filter-btn.active { background: #667eea; color: white; border-color: #667eea; } 
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 8px rgba(0,0,0,.1); border-radius: 8px; overflow: hidden; } 
+        thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; } 
+        th { padding: 15px; text-align: center; font-weight: 600; text-transform: uppercase; font-size: .9em; letter-spacing: .5px; } 
+        td { padding: 15px; border-bottom: 1px solid #eee; text-align: center; } 
+        td:nth-child(2), td:nth-child(3) { text-align: left; } 
+        tbody tr:hover { background: #f8f9fa; } 
+        .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: .85em; text-transform: uppercase; letter-spacing: .5px; } 
+        .status-passed  { background: #d4edda; color: #155724; } 
+        .status-failed  { background: #f8d7da; color: #721c24; } 
+        .status-skipped { background: #fff3cd; color: #856404; } 
+        .report-link { color: #667eea; text-decoration: none; font-weight: 600; } 
+        .report-link:hover { color: #764ba2; text-decoration: underline; } 
+        .full-report-section { padding: 25px 30px; background: #f0f2ff; border-top: 3px solid #667eea; border-bottom: 3px solid #667eea; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; } 
+        .full-report-section h2 { color: #333; font-size: 1.4em; margin: 0; } 
+        .full-report-section p { color: #555; font-size: .95em; margin: 4px 0 0; } 
+        .full-report-section .text-block { flex: 1; } 
+        .btn-full-report { display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 1em; font-weight: 700; box-shadow: 0 4px 15px rgba(102,126,234,.45); transition: all .3s; white-space: nowrap; } 
+        .btn-full-report:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(102,126,234,.6); } 
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: .9em; } 
+        .nav-buttons { position: fixed; right: 30px; bottom: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; } 
+        .nav-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 16px; border-radius: 50px; cursor: pointer; font-size: .9em; font-weight: 600; box-shadow: 0 4px 15px rgba(102,126,234,.4); transition: all .3s; display: flex; align-items: center; gap: 8px; text-decoration: none; } 
+        .nav-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(102,126,234,.6); } 
+    </style> 
+</head> 
+<body> 
+    <div class="container" id="top"> 
+        <div class="header"> 
+            <h1>🎯 Test Execution Summary</h1> 
+            <p>Automated Test Results - EAL IT Solutions Framework</p> 
+        </div> 
+
+        <div class="stats-container"> 
+            <div class="chart-container"> 
+                <canvas id="testChart"></canvas> 
+            </div> 
+            <div class="stats-grid"> 
+                <div class="stat-card total"><div class="number">1</div><div class="label">Total Tests</div></div> 
+                <div class="stat-card total-elapsed"><div class="number">00:00:04</div><div class="label">Total Elapsed Time</div></div> 
+                <div class="stat-card duration"><div class="number">00:00:02</div><div class="label">Total Execution Time</div></div> 
+                <div class="stat-card spec-files"><div class="number">1</div><div class="label">Spec Files</div></div> 
+                <div class="stat-card passed"><div class="number">1</div><div class="label">Passed</div></div> 
+                <div class="stat-card failed"><div class="number">0</div><div class="label">Failed</div></div> 
+                <div class="stat-card skipped"><div class="number">0</div><div class="label">Skipped</div></div> 
+                <div class="stat-card pass-rate"><div class="number">100.0%</div><div class="label">Pass Rate</div></div> 
+                <div class="stat-card failure-rate"><div class="number">0.0%</div><div class="label">Failure Rate</div></div> 
+            </div> 
+        </div> 
+
+        <div class="info-section"> 
+            <div class="info-row"><span class="info-label">📁 Results Directory:</span><span class="info-value">Results_2026-10-16_18-05-51</span></div> 
+            <div class="info-row"><span class="info-label">🌐 Environment URL:</span><span class="info-value">https://parabank.parasoft.com/parabank/index.htm</span></div> 
+            <div class="info-row"><span class="info-label">🕐 Execution Start Time:</span><span class="info-value">10/16/2026, 6:05:47 PM</span></div> 
+            <div class="info-row"><span class="info-label">🕑 Execution End Time:</span><span class="info-value">10/16/2026, 6:05:51 PM</span></div> 
+            <div class="info-row"><span class="info-label">📋 Controller:</span><span class="info-value">SmokeTestController.csv</span></div> 
+            <div class="info-row"><span class="info-label">🌿 Branch Name:</span><span class="info-value">Unknown</span></div> 
+        </div> 
+
+        <div class="results-section"> 
+            <h2>📊 Detailed Test Results</h2> 
+            <div class="search-sort-container"> 
+                <div class="search-box"><input type="text" id="searchInput" placeholder="🔍 Search test names..." onkeyup="searchTests()"></div> 
+                <div class="sort-box"> 
+                    <label>Sort by:</label> 
+                    <select id="sortSelect" onchange="sortTests()"> 
+                        <option value="sequence">Sequence</option> 
+                        <option value="name">Name (A-Z)</option> 
+                        <option value="name-desc">Name (Z-A)</option> 
+                        <option value="duration">Duration (Low to High)</option> 
+                        <option value="duration-desc">Duration (High to Low)</option> 
+                        <option value="status">Status</option> 
+                    </select> 
+                </div> 
+                <div class="sort-box"> 
+                    <label>Assigned To:</label> 
+                    <select id="assigneeFilter" onchange="filterByAssignee()"> 
+                        <option value="__all__">All Tests (1)</option><option value="QA-Shams">QA-Shams (1)</option> 
+                    </select> 
+                </div> 
+            </div> 
+            <div class="filter-buttons"> 
+                <button class="filter-btn active" onclick="filterTests('all', this)">All Tests</button> 
+                <button class="filter-btn" onclick="filterTests('passed', this)">Passed Tests</button> 
+                <button class="filter-btn" onclick="filterTests('failed', this)">Failed Tests</button> 
+                <button class="filter-btn" onclick="filterTests('skipped', this)">Skipped Tests</button> 
+            </div> 
+            <table id="resultsTable"> 
+                <thead> 
+                    <tr> 
+                        <th>#</th> 
+                        <th>Spec File Name</th> 
+                        <th>Test Name</th> 
+                        <th>Status</th> 
+                        <th>Assigned To</th> 
+                        <th>Execution Time</th> 
+                        <th>Report</th> 
+                    </tr> 
+                </thead> 
+                <tbody> 
+                    <tr data-status="passed" data-name="tc-pb-001 - verify successful login in parabank" data-duration="2639" data-sequence="1" data-assignee="QA-Shams"> 
+                        <td>1</td> 
+                        <td>paraBankLogin</td> 
+                        <td>TC-PB-001 - Verify Successful Login in ParaBank</td> 
+                        <td><span class="status-badge status-passed">passed</span></td> 
+                        <td>QA-Shams</td> 
+                        <td>00:00:02</td> 
+                        <td><a href="playwright-report/index.html#?testId=5637393ea5a218253800-0a4e01c59027d738080c" class="report-link" target="_blank">View Test →</a></td> 
+                    </tr> 
+                </tbody> 
+            </table> 
+        </div> 
+
+        <div class="full-report-section" id="full-report"> 
+            <div class="text-block"> 
+                <h2>📋 Detailed Playwright Report</h2> 
+                <p>Open the full interactive Playwright HTML report to browse all tests, traces, screenshots, and step-level details.</p> 
+            </div> 
+            <a href="playwright-report/index.html" class="btn-full-report" target="_blank"> 
+                🔍 Open Full Playwright Report 
+            </a> 
+        </div> 
+
+        <div class="footer" id="bottom"> 
+            <p>Generated on 10/16/2026, 6:05:51 PM | EAL IT Solutions Test Framework</p> 
+        </div> 
+    </div> 
+
+    <div class="nav-buttons"> 
+        <a href="#top"    class="nav-btn" title="Go to Top">    <span>↑</span><span>Top</span>    </a> 
+        <a href="#bottom" class="nav-btn" title="Go to Bottom"> <span>↓</span><span>Bottom</span> </a> 
+    </div> 
+
+    <script> 
+        const ctx = document.getElementById('testChart').getContext('2d'); 
+        new Chart(ctx, { 
+            type: 'pie', 
+            data: { 
+                labels: ['Passed', 'Failed', 'Skipped'], 
+                datasets: [{ data: [1, 0, 0], backgroundColor: ['#2ecc71', '#e74c3c', '#f39c12'], borderWidth: 2, borderColor: '#fff' }] 
+            }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } }, 
+                    title: { display: true, text: 'Test Results Distribution', font: { size: 14, weight: 'bold' }, padding: { bottom: 10 } } 
+                } 
+            } 
+        }); 
+
+        const filterState = { status: 'all', assignee: '__all__', query: '' }; 
+
+        function applyFilters() { 
+            document.querySelectorAll('#resultsTable tbody tr').forEach(row => { 
+                const owner = row.dataset.assignee || ''; 
+                const matchesAssignee = 
+                    filterState.assignee === '__all__'   ? true : 
+                    filterState.assignee === '__blank__' ? owner === '' : 
+                                                           owner === filterState.assignee; 
+                const matchesStatus = filterState.status === 'all' || row.dataset.status === filterState.status; 
+                const matchesQuery  = row.dataset.name.includes(filterState.query); 
+                row.style.display = (matchesAssignee && matchesStatus && matchesQuery) ? '' : 'none'; 
+            }); 
+        } 
+
+        function filterTests(status, element) { 
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); 
+            element.classList.add('active'); 
+            filterState.status = status; 
+            applyFilters(); 
+        } 
+
+        function searchTests() { 
+            filterState.query = document.getElementById('searchInput').value.toLowerCase(); 
+            applyFilters(); 
+        } 
+
+        function filterByAssignee() { 
+            filterState.assignee = document.getElementById('assigneeFilter').value; 
+            applyFilters(); 
+        } 
+
+        function sortTests() { 
+            const val   = document.getElementById('sortSelect').value; 
+            const tbody = document.querySelector('#resultsTable tbody'); 
+            const rows  = [...tbody.querySelectorAll('tr')]; 
+            rows.sort((a, b) => { 
+                switch (val) { 
+                    case 'name':          return a.dataset.name.localeCompare(b.dataset.name); 
+                    case 'name-desc':     return b.dataset.name.localeCompare(a.dataset.name); 
+                    case 'duration':      return Number(a.dataset.duration) - Number(b.dataset.duration); 
+                    case 'duration-desc': return Number(b.dataset.duration) - Number(a.dataset.duration); 
+                    case 'status':        return a.dataset.status.localeCompare(b.dataset.status); 
+                    default:              return Number(a.dataset.sequence) - Number(b.dataset.sequence); 
+                } 
+            }); 
+            rows.forEach(r => tbody.appendChild(r)); 
+        } 
+    </script> 
+</body> 
+</html>
