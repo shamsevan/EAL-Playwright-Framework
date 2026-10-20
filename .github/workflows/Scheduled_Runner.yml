@@ -1,0 +1,185 @@
+name: >-
+  EAL Scheduled Test Runner
+  EAL-এর নির্দিষ্ট সময়ে test run
+run-name: >-
+  EAL Scheduled Test Runner (Automated)
+  EAL-এর নির্দিষ্ট সময়ে test run (স্বয়ংক্রিয়)
+
+on:
+  # English: Tests run automatically Monday to Friday, at 12:00 and 22:00 UTC.
+  # In Eastern time, that is 8:00 AM and 6:00 PM in summer, and 7:00 AM and 5:00 PM in winter.
+  #
+  # বাংলা: সোমবার থেকে শুক্রবার UTC দুপুর ১২টা ও রাত ১০টায় test run হবে।
+  # Eastern time-এ গ্রীষ্মকালে সকাল ৮টা ও সন্ধ্যা ৬টায় run হবে।
+  # শীতকালে সকাল ৭টা ও বিকেল ৫টায় run হবে। ঋতু বদলালে ঘড়ির সময় এক ঘণ্টা বদলে যায়।
+  schedule:
+    # English: Run at 12:00 and 22:00 UTC, Monday to Friday.
+    #
+    # বাংলা: এই schedule অনুযায়ী সোমবার থেকে শুক্রবার UTC দুপুর ১২টা ও রাত ১০টায় test run হবে।
+    - cron: '0 12,22 * * 1-5'
+
+  # English: You can also start the tests yourself from GitHub Actions.
+  #
+  # বাংলা: চাইলে GitHub Actions থেকে নিজেও test run করতে পারবেন।
+  workflow_dispatch:
+    inputs:
+      test_controller:
+        description: 'Choose which tests to run. | কোন test run করতে চান, সেটি বেছে নিন।'
+        required: true
+        default: RegressionTestController.csv
+        type: choice
+        options:
+          - RegressionTestController.csv
+          - SmokeTestController.csv
+
+jobs:
+  execute-tests:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # English: Use the GitHub Environment that has the same name as this branch.
+    #
+    # বাংলা: বর্তমান branch-এর একই নামে থাকা GitHub Environment ব্যবহার করুন।
+    environment: ${{ github.ref_name }}
+
+    steps:
+      # English: Get the project files so the tests can run.
+      #
+      # বাংলা: test run করার জন্য project-এর file নিয়ে আসুন।
+      - name: >-
+          Checkout code
+          Project-এর file নিয়ে আসুন
+        uses: actions/checkout@v4
+
+      # English: Set up Node.js 20 and cache npm files to speed up future runs.
+      #
+      # বাংলা: Node.js 20 setup করুন। পরের run দ্রুত করতে npm-এর file cache করুন।
+      - name: >-
+          Setup Node.js
+          Node.js setup করুন
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      # English: Install the project packages and the Chromium browser used by Playwright.
+      #
+      # বাংলা: project-এর দরকারি package ও Playwright-এর Chromium browser install করুন।
+      - name: >-
+          Install packages and Playwright
+          দরকারি package ও Playwright install
+        shell: powershell
+        run: |
+          npm install
+          npx playwright install chromium --with-deps
+
+      # English: Save the start time so we can find this run's reports later.
+      #
+      # বাংলা: এই run-এর report পরে খুঁজে পেতে start time save করুন।
+      - name: >-
+          Mark run start time
+          Run-এর start time save করুন
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path $env:RUNNER_TEMP -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $env:RUNNER_TEMP 'run_start_marker') -Force | Out-Null
+
+      # English: Set the portal login details, then run the tests you selected.
+      #
+      # বাংলা: Portal-এ login-এর তথ্য দিয়ে আপনার বেছে নেওয়া test run করুন।
+      - name: >-
+          Run Playwright tests
+          Playwright test run করুন
+        shell: powershell
+        env:
+          # English: Get the password saved in this GitHub Environment.
+          #
+          # বাংলা: এই GitHub Environment-এ save করা password নিন।
+          SECRET_PASSWORD: ${{ secrets.USER_PORTAL_PASSWORD }}
+        run: |
+          # English: Scheduled runs use the default URL and username below.
+          #
+          # বাংলা: নির্ধারিত সময়ে test run করার সময় URL বা username না দিলে নিচের default value ব্যবহার হবে।
+          $resolvedUrl = "${{ github.event.inputs.url }}"
+          if ([string]::IsNullOrWhiteSpace($resolvedUrl)) { $resolvedUrl = "https://parabank.parasoft.com/parabank/index.htm" }
+
+          $resolvedUser = "${{ github.event.inputs.userid }}"
+          if ([string]::IsNullOrWhiteSpace($resolvedUser)) { $resolvedUser = "john" }
+
+          $resolvedPassword = "${{ github.event.inputs.password }}"
+          if ([string]::IsNullOrWhiteSpace($resolvedPassword)) { $resolvedPassword = $env:SECRET_PASSWORD }
+
+          "USER_PORTAL_URL=$resolvedUrl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "USER_PORTAL_USERNAME=$resolvedUser" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "USER_PORTAL_PASSWORD=$resolvedPassword" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # English: Scheduled runs use the regression tests unless you choose another option.
+          #
+          # বাংলা: অন্য test বেছে না দিলে নির্ধারিত সময়ে Regression test run হবে।
+          $controller = "${{ github.event.inputs.test_controller }}"
+          if ([string]::IsNullOrWhiteSpace($controller)) { $controller = "RegressionTestController.csv" }
+
+          Write-Host "Running tests: $controller"
+          Write-Host "Test run হচ্ছে: $controller"
+          "TEST_CONTROLLER=$controller" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          npm test $controller
+
+      # English: Find the results folder created by this run, not an older one.
+      #
+      # বাংলা: আগের run-এর folder নয়, শুধু এই run-এ তৈরি হওয়া folder খুঁজুন।
+      - name: >-
+          Find this run's results folder
+          এই run-এর result folder খুঁজুন
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          $base = 'AllTestResults/HTMLReports'
+          $marker = Join-Path $env:RUNNER_TEMP 'run_start_marker'
+          $latest = ''
+
+          if ((Test-Path $marker) -and (Test-Path $base)) {
+            $markerItem = Get-Item $marker
+            $candidate = Get-ChildItem -Path $base -Directory -Filter 'Results_*' -ErrorAction SilentlyContinue |
+              Where-Object { $_.LastWriteTimeUtc -gt $markerItem.LastWriteTimeUtc } |
+              Sort-Object Name |
+              Select-Object -Last 1
+            if ($candidate) {
+              $latest = $candidate.FullName
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($latest)) {
+            Write-Host 'No AllTestResults folder found to upload.'
+            Write-Host 'Upload করার মতো নতুন result folder পাওয়া যায়নি।'
+          } else {
+            Write-Host "New report folder: $latest"
+            Write-Host "নতুন report folder: $latest"
+          }
+
+          "REPORT_DIR=$latest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # English: Save the Playwright HTML report, even if a test fails.
+      #
+      # বাংলা: test fail করলেও Playwright HTML report save করুন।
+      - name: >-
+          Upload Playwright HTML report
+          Playwright HTML report save করুন
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: playwright-report-scheduled-${{ github.ref_name }}
+          path: apps/playwright-report/
+          retention-days: 15
+
+      # English: Save this run's test results if a new results folder was created.
+      #
+      # বাংলা: নতুন result folder তৈরি হলে এই run-এর test result save করুন।
+      - name: >-
+          Upload test results
+          Test result save করুন
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && env.REPORT_DIR != '' }}
+        with:
+          name: AllTestResults-scheduled-${{ github.ref_name }}
+          path: ${{ env.REPORT_DIR }}
+          retention-days: 15
