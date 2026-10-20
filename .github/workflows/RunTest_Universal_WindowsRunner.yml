@@ -1,4 +1,5 @@
 name: EAL Universal Test Runner
+run-name: EAL Universal Test Runner (${{ inputs.test_controller }})
 
 # =====================================================================
 # (English) This workflow allows manual execution of Playwright tests.
