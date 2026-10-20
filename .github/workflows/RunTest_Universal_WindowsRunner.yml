@@ -128,14 +128,26 @@ jobs:
           
           npm test $controller
 
-      # =====================================================================
-      # 5. (English) Upload Test Results & HTML Report as artifacts.
-      #    (Bangla) Test sheshe report ti GitHub artifact hisebe upload korbe.
+     # =====================================================================
+      # 5. (English) Upload Playwright HTML Report.
+      #    (Bangla) Playwright report ti GitHub artifact hisebe upload korbe.
       # =====================================================================
       - name: Upload Playwright HTML report 
         uses: actions/upload-artifact@v4 
         if: ${{ always() }} 
         with: 
-          name: playwright-report 
+          name: playwright-report-${{ github.ref_name }}
           path: apps/playwright-report/ 
+          retention-days: 15
+
+      # =====================================================================
+      # 6. (English) Upload AllTestResults Directory.
+      #    (Bangla) AllTestResults folder ti GitHub artifact hisebe upload korbe.
+      # =====================================================================
+      - name: Upload All Test Results
+        uses: actions/upload-artifact@v4 
+        if: ${{ always() }} 
+        with: 
+          name: AllTestResults-${{ github.ref_name }}
+          path: AllTestResults/ 
           retention-days: 15
