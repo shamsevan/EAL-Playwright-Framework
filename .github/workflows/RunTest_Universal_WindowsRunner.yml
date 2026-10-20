@@ -10,23 +10,39 @@ name: EAL Universal Test Runner
 on: 
   workflow_dispatch: 
     inputs: 
+      # =====================================================================
+      # (English) Input for Portal URL. Defaults to empty string if not provided.
+      # (Bangla) Portal URL er jonne input. Kichu na dile khali string nibe.
+      # =====================================================================
       url: 
         description: 'Portal URL (Blank = use .env default)' 
         required: false 
         default: '' 
         type: string 
 
+      # =====================================================================
+      # (English) Input for Username. Defaults to empty string if not provided.
+      # (Bangla) Username er jonne input. Kichu na dile khali string nibe.
+      # =====================================================================
       userid: 
         description: 'Username (Blank = use .env default)' 
         required: false 
         default: '' 
         type: string 
 
+      # =====================================================================
+      # (English) Input for Password. Will fetch from GitHub secrets if left blank.
+      # (Bangla) Password er jonne input. Faka rakhle GitHub secret theke nibe.
+      # =====================================================================
       password: 
         description: 'Password (Blank = use GitHub Secret)' 
         required: false 
         type: string 
 
+      # =====================================================================
+      # (English) Dropdown to select the test controller file.
+      # (Bangla) Test controller file select korar jonne dropdown.
+      # =====================================================================
       test_controller: 
         description: 'Select Test Controller to run' 
         required: true 
@@ -40,6 +56,12 @@ jobs:
   execute-tests: 
     runs-on: windows-latest 
     timeout-minutes: 60
+    
+    # =====================================================================
+    # (Pro-Grade) Dynamically loads secrets based on the current Branch Name
+    # (Bangla) Current Branch er nam onujayi automatically secret load korbe.
+    # =====================================================================
+    environment: ${{ github.ref_name }}
 
     steps: 
       # =====================================================================
@@ -50,8 +72,8 @@ jobs:
         uses: actions/checkout@v4 
 
       # =====================================================================
-      # 2. (English) Setup Node.js environment.
-      #    (Bangla) Test run korar jonno Node.js install korbe.
+      # 2. (English) Setup Node.js environment using npm caching.
+      #    (Bangla) Test run korar jonno Node.js install korbe ebong cache korbe.
       # =====================================================================
       - name: Setup Node.js 
         uses: actions/setup-node@v4
@@ -60,7 +82,7 @@ jobs:
           cache: 'npm'
 
       # =====================================================================
-      # 3. (English) Install dependencies and Playwright browsers.
+      # 3. (English) Install dependencies and Playwright Chromium browser.
       #    (Bangla) npm packages ebong Chromium browser install korbe.
       # =====================================================================
       - name: Install dependencies & Playwright
@@ -76,7 +98,10 @@ jobs:
       - name: Run Playwright tests with selected controller 
         shell: powershell 
         env: 
-          # GitHub Secrets theke password nibe (pore amra setup korbo)
+          # =====================================================================
+          # (English) Fetches password from GitHub Environment Secrets.
+          # (Bangla) GitHub Environment Secrets theke password fetch korbe.
+          # =====================================================================
           SECRET_PASSWORD: ${{ secrets.USER_PORTAL_PASSWORD }} 
         run: | 
           # Step A: Resolve URL
@@ -104,7 +129,7 @@ jobs:
           npm test $controller
 
       # =====================================================================
-      # 5. (English) Upload Test Results & HTML Report.
+      # 5. (English) Upload Test Results & HTML Report as artifacts.
       #    (Bangla) Test sheshe report ti GitHub artifact hisebe upload korbe.
       # =====================================================================
       - name: Upload Playwright HTML report 
